@@ -1,0 +1,161 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #202936;
+  --primary: #3566e8;
+  --primary-foreground: #ffffff;
+  --success: #278369;
+  --muted: #f5f7fa;
+  --muted-foreground: color-mix(in srgb, #202936 62%, #ffffff);
+  --card: var(--background);
+  --card-foreground: var(--foreground);
+  --popover: var(--background);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --accent: color-mix(in srgb, #3566e8 8%, #ffffff);
+  --accent-foreground: var(--primary);
+  --destructive: var(--foreground);
+  --border: color-mix(in srgb, #202936 10%, #ffffff);
+  --input: var(--border);
+  --ring: var(--primary);
+  --radius: 0.65rem;
+  --sidebar: var(--muted);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--primary);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--primary);
+}
+@theme inline {
+  --font-sans: "Inter", Arial, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 14px;
+    line-height: 1.5;
+    font-family: "Inter", Arial, sans-serif;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--primary);
+  }
+}
+@layer components {
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-balance md:text-[28px];
+  }
+  .page-description {
+    @apply mt-1.5 text-sm leading-6 text-muted-foreground;
+  }
+  .panel {
+    @apply rounded-xl border bg-card text-card-foreground;
+  }
+  .section-heading {
+    @apply text-base font-semibold tracking-tight;
+  }
+  .text-link {
+    @apply inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline;
+  }
+  .native-select {
+    @apply h-9 rounded-lg border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30;
+  }
+  .icon-tile {
+    @apply flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background text-muted-foreground;
+  }
+  .status-pill {
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium;
+  }
+  .status-success {
+    @apply bg-success/8 text-success;
+  }
+  .status-progress {
+    @apply bg-primary/8 text-primary;
+  }
+  .status-neutral {
+    @apply bg-muted text-muted-foreground;
+  }
+  .data-table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+  .data-table th {
+    @apply whitespace-nowrap bg-muted/70 px-5 py-3 font-medium text-muted-foreground;
+  }
+  .data-table td {
+    @apply border-t px-5 py-4;
+  }
+  .data-table tbody tr {
+    @apply transition-colors hover:bg-muted/50;
+  }
+  .page-enter {
+    animation: enter 350ms ease-out both;
+  }
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
