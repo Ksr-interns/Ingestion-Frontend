@@ -203,6 +203,24 @@ export function useWorkspace() {
 			members: 1,
 		};
 
+	// Merge datasets with live background job progression
+	const datasetsWithLiveProgress = datasets.map((ds) => {
+		const activeJob = jobs.find(
+			(j) =>
+				(j.dataset_id === ds.id || j.dataset_name === ds.name) &&
+				(j.status === "in_progress" || j.status === "pending")
+		);
+		if (activeJob) {
+			return {
+				...ds,
+				status: "In Progress" as const,
+				progress_percentage: activeJob.progress_percentage ?? 0,
+				active_job: activeJob,
+			};
+		}
+		return ds;
+	});
+
 	return {
 		organizationId,
 		organization,
@@ -212,7 +230,7 @@ export function useWorkspace() {
 		},
 		role,
 		setRole,
-		datasets,
+		datasets: datasetsWithLiveProgress,
 		setDatasets,
 		jobs,
 		setJobs,

@@ -87,7 +87,7 @@ export function HistoryPage() {
 							type: "file",
 							size: node.size,
 							dataset_name: ds.name,
-							status: node.status || ds.status || "Completed",
+							status: node.status || "Completed",
 							source_type: ds.source_type || "Local",
 						});
 					}
@@ -247,12 +247,12 @@ export function HistoryPage() {
 												(item.status || "").toLowerCase().includes("fail") ||
 												(item.status || "").toLowerCase().includes("error")
 													? "Failed"
-													: (item.status || "Completed").toLowerCase().includes("completed") ||
-														  (item.status || "").toLowerCase().includes("attached") ||
-														  (item.status || "").toLowerCase().includes("success") ||
-														  (item.status || "").toLowerCase().includes("duplicate")
-														? "Completed"
-														: "In Progress"
+													: (item.status || "").toLowerCase().includes("in_progress") ||
+														  (item.status || "").toLowerCase().includes("in progress") ||
+														  (item.status || "").toLowerCase().includes("processing") ||
+														  (item.status || "").toLowerCase().includes("pending")
+														? "In Progress"
+														: "Completed"
 											}
 										/>
 									</td>

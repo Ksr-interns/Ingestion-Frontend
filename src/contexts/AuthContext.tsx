@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           user: PublicUser;
           access_token: string;
           message: string;
-        }>("/auth/refresh", { method: "POST" }, false, false);
+        }>("/v1/auth/refresh", { method: "POST" }, false, false);
 
         if (cancelled) return;
 
@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         access_token: string;
         message: string;
       }>(
-        "/auth/login",
+        "/v1/auth/login",
         {
           method: "POST",
           body: JSON.stringify({ identifier, password }),
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: PublicUser;
         message: string;
       }>(
-        "/auth/signup/init",
+        "/v1/auth/signup/init",
         {
           method: "POST",
           body: JSON.stringify({
@@ -174,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         access_token: string;
         message: string;
       }>(
-        "/auth/signup/verify",
+        "/v1/auth/signup/verify",
         {
           method: "POST",
           body: JSON.stringify({ email, otp_code: otpCode }),
@@ -202,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await apiRequest<{ message: string }>(
-        "/auth/logout",
+        "/v1/auth/logout",
         { method: "POST" },
         false,
         false
@@ -222,17 +222,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = useCallback(() => {
     const base = getApiBaseUrl();
-    if (base) window.location.href = `${base}/auth/google`;
+    if (base) window.location.href = `${base}/v1/auth/google`;
   }, []);
 
   const loginWithMicrosoft = useCallback(() => {
     const base = getApiBaseUrl();
-    if (base) window.location.href = `${base}/auth/microsoft`;
+    if (base) window.location.href = `${base}/v1/auth/microsoft`;
   }, []);
 
   const requestPasswordReset = useCallback(async (email: string) => {
     return apiRequest<{ email: string; reset_token: string; message: string }>(
-      "/auth/password-reset/request",
+      "/v1/auth/password-reset/request",
       {
         method: "POST",
         body: JSON.stringify({ email }),
@@ -245,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const confirmPasswordReset = useCallback(
     async (email: string, resetToken: string, newPassword: string) => {
       await apiRequest<{ message: string }>(
-        "/auth/password-reset/verify",
+        "/v1/auth/password-reset/verify",
         {
           method: "POST",
           body: JSON.stringify({
@@ -272,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const user = await apiRequest<PublicUser>(
-        "/auth/me",
+        "/v1/auth/me",
         { method: "GET" },
         false,
         false

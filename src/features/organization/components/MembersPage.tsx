@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
 	UserPlus,
 	Search,
@@ -6,6 +7,7 @@ import {
 	MoreHorizontal,
 	Trash2,
 	Mail,
+	UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,13 +35,14 @@ import type { Member } from "@/types/platform";
 import { organizationService } from "@/features/organization/services/organization.service";
 
 export function MembersPage() {
+	const navigate = useNavigate();
 	const { members, setMembers, role } = useWorkspace();
 	const [query, setQuery] = useState("");
 	const [inviteOpen, setInviteOpen] = useState(false);
 	const [removing, setRemoving] = useState<Member | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	if (role !== "org_admin")
+	if (role !== "org_admin" && role !== "super_admin")
 		return (
 			<div className="panel p-8">
 				<ShieldCheck className="size-8 text-primary" />
@@ -55,6 +58,7 @@ export function MembersPage() {
 		const values = new FormData(event.currentTarget);
 		const email = String(values.get("email")).trim().toLowerCase();
 		const name = String(values.get("name")).trim();
+		const password = String(values.get("password")).trim();
 		const memberRole = values.get("role") as Member["role"];
 
 		if (members.some((member) => member.email.toLowerCase() === email)) {
@@ -68,12 +72,13 @@ export function MembersPage() {
 				email,
 				user_name: name || undefined,
 				role: memberRole,
+				temporary_password: password || "UserPass123!",
 			});
 			await setMembers();
 			setInviteOpen(false);
-			toast.success("Member invited successfully");
+			toast.success(`User ${email} created successfully in organization!`);
 		} catch (err: any) {
-			toast.error(err?.message || "Failed to invite member");
+			toast.error(err?.message || "Failed to create user in organization");
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -89,12 +94,18 @@ export function MembersPage() {
 		<div className="flex flex-col gap-7">
 			<PageHeading
 				title="Team members"
-				description="Great work happens together. Manage the people in your workspace."
+				description="Great work happens together. Manage and provision users in your organization."
 				action={
-					<Button size="lg" onClick={() => setInviteOpen(true)}>
-						<UserPlus data-icon="inline-start" />
-						Invite member
-					</Button>
+					<div className="flex items-center gap-2">
+						<Button size="lg" onClick={() => navigate("/organization/create-user")}>
+							<UserPlus data-icon="inline-start" />
+							Create User
+						</Button>
+						<Button size="lg" variant="outline" onClick={() => setInviteOpen(true)}>
+							<UserCheck data-icon="inline-start" />
+							Quick Invite
+						</Button>
+					</div>
 				}
 			/>
 			<div className="flex flex-wrap items-center justify-between gap-3">

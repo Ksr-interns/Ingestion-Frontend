@@ -44,7 +44,9 @@ export function OrganizationsPage({ id }: { id?: string }) {
 		const form = new FormData(event.currentTarget);
 		const name = String(form.get("name")).trim();
 		const display_name = String(form.get("display_name")).trim();
+		const admin_name = String(form.get("admin_name")).trim();
 		const admin_email = String(form.get("admin_email")).trim();
+		const admin_password = String(form.get("admin_password")).trim();
 
 		if (organizations.some((org) => org.name === name)) {
 			toast.error("This organization slug already exists.");
@@ -56,11 +58,13 @@ export function OrganizationsPage({ id }: { id?: string }) {
 			await adminService.create({
 				name,
 				display_name,
+				admin_name: admin_name || undefined,
 				admin_email: admin_email || undefined,
+				admin_password: admin_password || "OrgAdmin123!",
 			});
 			await setOrganizations();
 			setCreateOpen(false);
-			toast.success("Organization created successfully");
+			toast.success(`Organization '${display_name}' & Org Admin '${admin_email}' created successfully!`);
 		} catch (err: any) {
 			toast.error(err?.message || "Failed to create organization");
 		} finally {
@@ -281,17 +285,17 @@ export function OrganizationsPage({ id }: { id?: string }) {
 								/>
 							</Field>
 							<Field>
-								<FieldLabel htmlFor="create-admin-name">Admin name</FieldLabel>
+								<FieldLabel htmlFor="create-admin-name">Org Admin Name</FieldLabel>
 								<Input
 									id="create-admin-name"
 									name="admin_name"
-									placeholder="Full name"
+									placeholder="e.g. Org Admin"
 									required
 								/>
 							</Field>
 							<Field>
 								<FieldLabel htmlFor="create-admin-email">
-									Admin email
+									Org Admin Email
 								</FieldLabel>
 								<Input
 									id="create-admin-email"
@@ -299,6 +303,20 @@ export function OrganizationsPage({ id }: { id?: string }) {
 									name="admin_email"
 									placeholder="admin@company.com"
 									required
+								/>
+							</Field>
+							<Field>
+								<FieldLabel htmlFor="create-admin-password">
+									Initial Password (admin(org))
+								</FieldLabel>
+								<Input
+									id="create-admin-password"
+									type="text"
+									name="admin_password"
+									placeholder="OrgAdmin123!"
+									defaultValue="OrgAdmin123!"
+									required
+									minLength={8}
 								/>
 							</Field>
 						</FieldGroup>

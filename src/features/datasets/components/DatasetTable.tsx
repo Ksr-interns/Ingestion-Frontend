@@ -84,7 +84,24 @@ export function DatasetTable({
 								</td>
 								<td className="text-muted-foreground">{dataset.file_count}</td>
 								<td>
-									<StatusBadge status={dataset.status} />
+									<div className="flex flex-col gap-1">
+										<StatusBadge status={dataset.status} />
+										{(dataset as any).progress_percentage !== undefined &&
+											(dataset as any).progress_percentage > 0 &&
+											(dataset as any).progress_percentage < 100 && (
+												<div className="w-28 space-y-1">
+													<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+														<div
+															className="h-full bg-primary transition-all duration-300"
+															style={{ width: `${(dataset as any).progress_percentage}%` }}
+														/>
+													</div>
+													<span className="text-[11px] text-muted-foreground font-medium">
+														{(dataset as any).progress_percentage}% ingested
+													</span>
+												</div>
+											)}
+									</div>
 								</td>
 								{!compact && (
 									<td className="whitespace-nowrap text-muted-foreground">

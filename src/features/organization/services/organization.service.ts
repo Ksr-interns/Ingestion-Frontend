@@ -9,7 +9,7 @@ export const organizationService = {
 			body: JSON.stringify(settings),
 		}),
 	members: () => apiRequest<Member[]>("/v1/organizations/me/members"),
-	invite: (data: { email: string; user_name?: string; role: Member["role"] }) =>
+	invite: (data: { email: string; user_name?: string; role: Member["role"]; user_identifier?: string; temporary_password?: string }) =>
 		apiRequest<Member>("/v1/organizations/me/members", {
 			method: "POST",
 			body: JSON.stringify(data),

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
 	ArrowRight,
 	ArrowLeft,
@@ -13,18 +13,24 @@ import {
 	Loader2,
 	CircleCheck,
 	Building2,
+	ShieldAlert,
+	CheckCircle2,
+	KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Brand, SourceIcon } from "@/components/PlatformUi";
-import { authService } from "@/features/auth/services/auth.service";
+import { useAuth } from "@/contexts/AuthContext";
 import { getApiBaseUrl } from "@/services/api-client";
 
-export type AuthMode = "login" | "signup" | "verify" | "forgot-password";
+export type AuthMode = "login" | "superadmin" | "verify" | "forgot-password";
+
 export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = {}) {
-	const [mode, setMode] = useState<AuthMode>(initialMode);
+	const navigate = useNavigate();
+	const auth = useAuth();
+	const [mode, setMode] = useState<AuthMode>(initialMode === "superadmin" ? "superadmin" : "login");
 	const [email, setEmail] = useState("");
 	const [passwordVisible, setPasswordVisible] = useState(false);
 	const [error, setError] = useState("");
@@ -32,118 +38,121 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 	const [resetStep, setResetStep] = useState(false);
 	const [resetToken, setResetToken] = useState("");
 	const [success, setSuccess] = useState("");
+
+	const isSuperAdminMode = mode === "superadmin";
+
 	const title =
 		mode === "login"
-			? "Welcome back."
-			: mode === "signup"
-				? "Make room for better data."
+			? "Organization Sign In"
+			: mode === "superadmin"
+				? "Super Admin Portal"
 				: mode === "verify"
-					? "Check your inbox."
+					? "Verify Account OTP"
 					: resetStep
-						? "Choose a new password."
-						: "Let’s get you back in.";
+						? "Choose a New Password"
+						: "Reset Password";
+
 	const description =
 		mode === "login"
-			? "Sign in to your connected data workspace."
-			: mode === "signup"
-				? "Create an account and bring your files together."
+			? "Sign in to your organization workspace. Accounts are provisioned by your Organization Admin."
+			: mode === "superadmin"
+				? "Restricted system administration portal. Sign in to provision organizations and organization admins."
 				: mode === "verify"
-					? "Enter the 6-digit verification code sent to your email."
+					? "Enter the 6-digit verification code sent to your email by your administrator."
 					: resetStep
 						? "Use your reset token to securely update your password."
 						: "Enter your email to request a password reset.";
-	async function submit(event: React.FormEvent<HTMLFormElement>) {
+
+	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		const data = new FormData(event.currentTarget);
 		setError("");
 		setPending(true);
+
 		try {
-			if (mode === "login") {
-				const result = await authService.login(
-					String(data.get("identifier")),
-					String(data.get("password")),
-				);
-				setSuccess(
-					`You’re authenticated as ${result.user.email}.`,
-				);
-			} else if (mode === "signup") {
-				await authService.signup(
-					email,
-					String(data.get("full_name")),
-					String(data.get("password")),
-				);
-				setMode("verify");
+			if (mode === "login" || mode === "superadmin") {
+				const identifier = String(data.get("identifier") || "").trim();
+				const password = String(data.get("password") || "");
+
+				if (!identifier || !password) {
+					throw new Error("Please enter both email/username and password.");
+				}
+
+				await auth.login(identifier, password);
+				toast.success(`Welcome back! Logged in successfully.`);
+
+				if (isSuperAdminMode) {
+					navigate("/admin/organizations", { replace: true });
+				} else {
+					navigate("/datasets", { replace: true });
+				}
 			} else if (mode === "verify") {
-				const result = await authService.verify(
-					email,
-					String(data.get("otp_code")),
-				);
-				setSuccess(
-					`Your email ${result.user.email} has been verified by your backend.`,
-				);
+				const submittedEmail = String(data.get("email") || email || "").trim();
+				const otpCode = String(data.get("otp_code") || "").trim();
+				if (!submittedEmail || !otpCode) {
+					throw new Error("Please enter both your email address and 6-digit OTP code.");
+				}
+				await auth.verifyOtp(submittedEmail, otpCode);
+				toast.success("Account verified successfully!");
+				navigate("/datasets", { replace: true });
 			} else if (!resetStep) {
-				const challenge = await authService.requestReset(email);
+				const submittedEmail = String(data.get("email") || email || "").trim();
+				if (!submittedEmail) {
+					throw new Error("Please enter your email address.");
+				}
+				const challenge = await auth.requestPasswordReset(submittedEmail);
 				setResetToken(challenge.reset_token);
 				setResetStep(true);
+				toast.info("Password reset request sent. Check backend terminal for OTP/token.");
 			} else {
-				if (data.get("new_password") !== data.get("confirm_password"))
+				const submittedEmail = String(data.get("email") || email || "").trim();
+				if (data.get("new_password") !== data.get("confirm_password")) {
 					throw new Error("The passwords do not match.");
-				await authService.resetPassword(
-					email,
+				}
+				await auth.confirmPasswordReset(
+					submittedEmail,
 					String(data.get("reset_token")),
 					String(data.get("new_password")),
 				);
-				setSuccess(
-					"Your password has been updated. You can now sign in with your new password.",
-				);
+				setSuccess("Your password has been updated. You can now sign in with your new password.");
 			}
-		} catch (error) {
+		} catch (err: any) {
 			setError(
-				error instanceof Error
-					? error.message
-					: "Something went wrong. Please try again.",
+				err instanceof Error
+					? err.message
+					: err?.message || "Authentication failed. Please check your credentials.",
 			);
 		} finally {
 			setPending(false);
 		}
 	}
-	function oauth(provider: "google" | "microsoft") {
-		const base = getApiBaseUrl();
-		if (!base) {
-			setError(
-				"Configure your backend in Settings → API connection to enable single sign-on.",
-			);
-			return;
-		}
-		window.location.assign(`${base}/auth/${provider}`);
+
+	function handleOAuth(provider: "google" | "microsoft") {
+		if (provider === "google") auth.loginWithGoogle();
+		else if (provider === "microsoft") auth.loginWithMicrosoft();
 	}
+
 	return (
 		<main className="grid min-h-screen lg:grid-cols-[0.95fr_1.05fr]">
+			{/* Left Decorative Banner */}
 			<section className="hidden flex-col justify-between bg-primary px-12 py-10 text-primary-foreground lg:flex">
 				<Link to="/" className="text-primary-foreground">
 					<span className="flex items-center gap-2.5">
 						<span className="flex size-8 items-center justify-center rounded-lg bg-primary-foreground/15">
 							<Database className="size-5" />
 						</span>
-						<span className="text-2xl font-semibold tracking-tight">
-							ingest.
-						</span>
+						<span className="text-2xl font-semibold tracking-tight">ingest.</span>
 					</span>
 				</Link>
 				<div className="max-w-md self-center py-14">
 					<p className="mb-5 text-sm font-medium tracking-widest text-primary-foreground/65">
-						LESS FRICTION. MORE FLOW.
+						ENTERPRISE INGESTION PLATFORM
 					</p>
-					<h1 className="text-balance text-5xl font-medium leading-[1.15] tracking-[-2px]">
-						Every file.
-						<br />
-						Every source.
-						<br />
-						One workspace.
+					<h1 className="text-balance text-4xl font-semibold leading-[1.2] tracking-tight">
+						Multi-tenant Ingestion Workspace
 					</h1>
 					<p className="mt-6 max-w-sm text-base leading-7 text-primary-foreground/75">
-						Give your team a simpler way to bring data together. Organized,
-						connected, and ready for what comes next.
+						Provisioned organization architecture. Super admins create organization admins, org admins manage team members, and users manage datasets & cloud ingestion.
 					</p>
 					<div className="mt-10 flex items-center gap-3">
 						{[FileText, Cloud, Server].map((Icon, index) => (
@@ -161,104 +170,140 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 					</div>
 				</div>
 				<div className="flex items-center justify-between text-sm text-primary-foreground/65">
-					<span>© 2026 Ingest</span>
+					<span>© 2026 Ingest Platform</span>
 					<span className="flex items-center gap-2">
-						<ShieldCheck className="size-4" />
-						Built for your team
+						<ShieldCheck className="size-4" /> Secure Enterprise Access
 					</span>
 				</div>
 			</section>
-			<section className="flex flex-col px-6 py-8 sm:px-12">
+
+			{/* Right Auth Form */}
+			<section className="flex flex-col px-6 py-8 sm:px-12 bg-background">
 				<div className="flex items-center justify-between">
 					<Link to="/" className="lg:invisible">
 						<Brand />
 					</Link>
-					<Link
-						to="/"
-						className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
-					>
-						Go to workspace <ArrowRight className="size-4" />
-					</Link>
+					
+					{/* Dedicated Super Admin Login Switcher */}
+					{mode === "login" && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								setMode("superadmin");
+								setError("");
+							}}
+							className="border-primary/30 text-primary hover:bg-primary/5 font-medium"
+						>
+							<ShieldAlert className="size-4 mr-1.5 text-primary" />
+							Super Admin Sign In
+						</Button>
+					)}
+					{mode === "superadmin" && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								setMode("login");
+								setError("");
+							}}
+							className="border-border text-foreground hover:bg-muted font-medium"
+						>
+							<Building2 className="size-4 mr-1.5 text-primary" />
+							Organization Sign In
+						</Button>
+					)}
 				</div>
+
 				<div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
 					{success ? (
 						<div className="flex flex-col gap-5">
 							<CircleCheck className="size-10 text-success" />
-							<h2 className="text-2xl font-semibold">You’re all set.</h2>
+							<h2 className="text-2xl font-semibold">Verification Complete</h2>
 							<p className="leading-6 text-muted-foreground">{success}</p>
-							<Link
-								className="text-link"
-								to={mode === "forgot-password" ? "/login" : "/"}
-							>
-								{mode === "forgot-password"
-									? "Back to sign in"
-									: "Go to workspace"}
-								<ArrowRight className="size-4" />
-							</Link>
+							<Button onClick={() => setMode("login")}>
+								Sign In to Workspace <ArrowRight className="size-4 ml-1" />
+							</Button>
 						</div>
 					) : (
 						<>
-							<h2 className="text-balance text-3xl font-semibold tracking-tight">
-								{title}
-							</h2>
-							<p className="mb-8 mt-3 leading-6 text-muted-foreground">
-								{description}
-							</p>
-							{(mode === "login" || mode === "signup") && (
+							{/* Header Badge & Title */}
+							<div className="flex flex-col gap-2">
+								{isSuperAdminMode ? (
+									<span className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400 w-max border border-amber-500/20">
+										<ShieldAlert className="size-3.5" /> Super Admin Access Only
+									</span>
+								) : (
+									<span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary w-max border border-primary/20">
+										<Building2 className="size-3.5" /> Organization Member Access
+									</span>
+								)}
+
+								<h2 className="text-balance text-3xl font-semibold tracking-tight mt-1">
+									{title}
+								</h2>
+								<p className="mb-6 mt-1 text-sm leading-6 text-muted-foreground">
+									{description}
+								</p>
+							</div>
+
+							{/* OAuth Buttons for regular Org users */}
+							{mode === "login" && (
 								<>
 									<div className="flex flex-col gap-3">
 										<Button
 											variant="outline"
 											size="lg"
-											onClick={() => oauth("google")}
+											type="button"
+											onClick={() => handleOAuth("google")}
 										>
 											<SourceIcon source="GDrive" />
-											Continue with Google
+											Continue with Google SSO
 										</Button>
 										<Button
 											variant="outline"
 											size="lg"
-											onClick={() => oauth("microsoft")}
+											type="button"
+											onClick={() => handleOAuth("microsoft")}
 										>
 											<SourceIcon source="Sharepoint" />
-											Continue with Microsoft
+											Continue with Microsoft SSO
 										</Button>
 									</div>
 									<div className="my-6 flex items-center gap-4">
 										<div className="flex-1 border-t" />
-										<span className="text-sm text-muted-foreground">
-											or continue with email
+										<span className="text-xs font-semibold uppercase text-muted-foreground">
+											or sign in with credentials
 										</span>
 										<div className="flex-1 border-t" />
 									</div>
 								</>
 							)}
-							<form onSubmit={submit} className="flex flex-col gap-5">
+
+							{/* Super Admin Notice */}
+							{mode === "superadmin" && (
+								<div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-xs leading-5 text-amber-900 dark:text-amber-200">
+									<p className="font-semibold flex items-center gap-1.5">
+										<KeyRound className="size-4 text-amber-600" />
+										No Public Signup Available
+									</p>
+									<p className="mt-1">
+										Super Admin credentials are pre-configured in your system environment (`superadmin@example.com`).
+									</p>
+								</div>
+							)}
+
+							<form onSubmit={handleSubmit} className="flex flex-col gap-5">
 								<FieldGroup>
-									{mode === "signup" && (
-										<Field>
-											<FieldLabel htmlFor="auth-full-name">
-												Full name
-											</FieldLabel>
-											<Input
-												id="auth-full-name"
-												name="full_name"
-												placeholder="Your full name"
-												autoComplete="name"
-												required
-												maxLength={255}
-											/>
-										</Field>
-									)}
-									{mode === "login" ? (
+									{(mode === "login" || mode === "superadmin") ? (
 										<Field>
 											<FieldLabel htmlFor="auth-identifier">
-												Email or username
+												{isSuperAdminMode ? "Super Admin Email or Username" : "Email address or Username"}
 											</FieldLabel>
 											<Input
 												id="auth-identifier"
 												name="identifier"
-												placeholder="you@company.com"
+												placeholder={isSuperAdminMode ? "superadmin@example.com" : "you@organization.com"}
 												autoComplete="username"
 												minLength={3}
 												required
@@ -266,14 +311,12 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 										</Field>
 									) : (
 										<Field>
-											<FieldLabel htmlFor="auth-email">
-												Email address
-											</FieldLabel>
+											<FieldLabel htmlFor="auth-email">Email Address</FieldLabel>
 											<Input
 												id="auth-email"
 												type="email"
 												name="email"
-												placeholder="you@company.com"
+												placeholder="you@organization.com"
 												autoComplete="email"
 												value={email}
 												onChange={(event) => setEmail(event.target.value)}
@@ -281,19 +324,19 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 											/>
 										</Field>
 									)}
-									{(mode === "login" || mode === "signup") && (
+
+									{(mode === "login" || mode === "superadmin") && (
 										<Field>
 											<div className="flex items-center justify-between">
-												<FieldLabel htmlFor="auth-password">
-													Password
-												</FieldLabel>
+												<FieldLabel htmlFor="auth-password">Password</FieldLabel>
 												{mode === "login" && (
-													<Link
-														to="/forgot-password"
-														className="text-sm text-primary hover:underline"
+													<button
+														type="button"
+														onClick={() => setMode("forgot-password")}
+														className="text-xs text-primary hover:underline font-medium"
 													>
 														Forgot password?
-													</Link>
+													</button>
 												)}
 											</div>
 											<div className="relative">
@@ -302,26 +345,16 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 													name="password"
 													type={passwordVisible ? "text" : "password"}
 													className="pr-10"
-													placeholder={
-														mode === "signup"
-															? "At least 8 characters"
-															: "Enter your password"
-													}
-													autoComplete={
-														mode === "signup"
-															? "new-password"
-															: "current-password"
-													}
-													minLength={8}
+													placeholder="Enter your password"
+													autoComplete="current-password"
+													minLength={6}
 													maxLength={128}
 													required
 												/>
 												<button
 													type="button"
-													className="absolute right-3 top-2 text-muted-foreground"
-													aria-label={
-														passwordVisible ? "Hide password" : "Show password"
-													}
+													className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+													aria-label={passwordVisible ? "Hide password" : "Show password"}
 													onClick={() => setPasswordVisible(!passwordVisible)}
 												>
 													{passwordVisible ? (
@@ -333,11 +366,10 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 											</div>
 										</Field>
 									)}
+
 									{mode === "verify" && (
 										<Field>
-											<FieldLabel htmlFor="auth-otp">
-												Verification code
-											</FieldLabel>
+											<FieldLabel htmlFor="auth-otp">6-Digit Verification Code</FieldLabel>
 											<Input
 												id="auth-otp"
 												name="otp_code"
@@ -350,30 +382,28 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 												className="h-12 text-center text-xl tracking-[0.5em]"
 												required
 											/>
+											<FieldDescription className="mt-1">
+												Enter the code sent to your email to verify your provisioned account.
+											</FieldDescription>
 										</Field>
 									)}
+
 									{mode === "forgot-password" && resetStep && (
 										<>
 											<Field>
-												<FieldLabel htmlFor="auth-reset-token">
-													Reset token
-												</FieldLabel>
+												<FieldLabel htmlFor="auth-reset-token">Reset Token / OTP</FieldLabel>
 												<Input
 													id="auth-reset-token"
 													name="reset_token"
-													type="password"
+													type="text"
 													defaultValue={resetToken}
 													autoComplete="off"
-													minLength={16}
-													maxLength={255}
 													placeholder="Your reset token"
 													required
 												/>
 											</Field>
 											<Field>
-												<FieldLabel htmlFor="auth-new-password">
-													New password
-												</FieldLabel>
+												<FieldLabel htmlFor="auth-new-password">New Password</FieldLabel>
 												<Input
 													id="auth-new-password"
 													name="new_password"
@@ -385,9 +415,7 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 												/>
 											</Field>
 											<Field>
-												<FieldLabel htmlFor="auth-confirm-password">
-													Confirm new password
-												</FieldLabel>
+												<FieldLabel htmlFor="auth-confirm-password">Confirm New Password</FieldLabel>
 												<Input
 													id="auth-confirm-password"
 													name="confirm_password"
@@ -401,86 +429,74 @@ export function AuthPage({ mode: initialMode = "login" }: { mode?: AuthMode } = 
 										</>
 									)}
 								</FieldGroup>
+
 								{error && (
 									<div
 										role="alert"
-										className="rounded-lg border bg-muted p-3 text-sm leading-6"
+										className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs leading-5 text-destructive"
 									>
 										{error}
-										<Link
-											to="/settings"
-											className="mt-2 block font-medium text-primary"
-										>
-											Open API settings
-										</Link>
 									</div>
 								)}
-								<Button type="submit" size="lg" disabled={pending}>
+
+								<Button type="submit" size="lg" disabled={pending} className="w-full">
 									{pending ? (
 										<>
-											<Loader2 className="animate-spin" />
-											Please wait
+											<Loader2 className="animate-spin mr-2 size-4" />
+											Signing in...
 										</>
 									) : (
 										<>
-											{mode === "login"
-												? "Sign in"
-												: mode === "signup"
-													? "Create account"
+											{isSuperAdminMode
+												? "Sign In as Super Admin"
+												: mode === "login"
+													? "Sign In"
 													: mode === "verify"
-														? "Verify email"
+														? "Verify Account"
 														: resetStep
-															? "Reset password"
-															: "Send reset request"}
-											<ArrowRight data-icon="inline-end" />
+															? "Reset Password"
+															: "Send Password Reset Code"}
+											<ArrowRight className="ml-2 size-4" />
 										</>
 									)}
 								</Button>
 							</form>
+
+							{/* Verification Shortcut for newly provisioned members */}
 							{mode === "login" && (
-								<button
-									className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary"
-									onClick={() =>
-										toast.info(
-											"Enterprise SSO requires your organization’s Auth0 configuration in the backend.",
-										)
-									}
-								>
-									<Building2 className="size-4" />
-									Sign in with enterprise SSO
-								</button>
+								<div className="mt-5 border-t pt-4 text-center">
+									<p className="text-xs text-muted-foreground">
+										Have a 6-digit OTP verification code?{" "}
+										<button
+											type="button"
+											onClick={() => setMode("verify")}
+											className="font-semibold text-primary hover:underline"
+										>
+											Verify your account
+										</button>
+									</p>
+								</div>
 							)}
-							<p className="mt-7 text-center text-sm text-muted-foreground">
-								{mode === "login" ? (
-									<>
-										New to Ingest?{" "}
-										<Link to="/signup" className="font-medium text-primary">
-											Create an account
-										</Link>
-									</>
-								) : mode === "signup" ? (
-									<>
-										Already have an account?{" "}
-										<Link to="/login" className="font-medium text-primary">
-											Sign in
-										</Link>
-									</>
-								) : (
-									<Link
-										to="/login"
-										className="inline-flex items-center gap-2 hover:text-primary"
+
+							{mode !== "login" && (
+								<p className="mt-6 text-center text-sm text-muted-foreground">
+									<button
+										type="button"
+										onClick={() => setMode("login")}
+										className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
 									>
 										<ArrowLeft className="size-4" />
-										Back to sign in
-									</Link>
-								)}
-							</p>
+										Back to Organization Sign In
+									</button>
+								</p>
+							)}
 						</>
 					)}
 				</div>
-				<p className="text-center text-sm text-muted-foreground">
-					Your data, connected.
-				</p>
+
+				<div className="mt-auto border-t pt-4 text-center text-xs text-muted-foreground">
+					Multi-Tenant Organization Management Platform
+				</div>
 			</section>
 		</main>
 	);

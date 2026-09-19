@@ -72,11 +72,18 @@ export function SourceLabel({ source }: { source: Source }) {
 }
 export function StatusBadge({ status }: { status: string }) {
 	const normalized = status.toLowerCase().replaceAll("_", " ");
-	const success = ["completed", "active", "connected", "success"].includes(
-		normalized,
-	);
-	const running = ["in progress", "processing"].includes(normalized);
-	const failed = ["failed", "suspended"].includes(normalized);
+	const success = [
+		"completed",
+		"active",
+		"connected",
+		"success",
+		"created",
+		"ready",
+		"attached",
+		"duplicate",
+	].includes(normalized);
+	const running = ["in progress", "processing", "ingesting", "pending"].includes(normalized);
+	const failed = ["failed", "suspended", "error"].includes(normalized);
 	const Icon = success
 		? CircleCheck
 		: running

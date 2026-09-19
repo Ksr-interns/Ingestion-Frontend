@@ -9,6 +9,7 @@ import { IntegrationsPage } from "@/features/integrations/components/Integration
 import { HistoryPage } from "@/features/ingestion/components/HistoryPage";
 import { AuditPage } from "@/features/audit/components/AuditPage";
 import { MembersPage } from "@/features/organization/components/MembersPage";
+import { CreateUserPage } from "@/features/organization/components/CreateUserPage";
 import { SettingsPage } from "@/features/settings/components/SettingsPage";
 import { OrganizationsPage } from "@/features/admin/components/OrganizationsPage";
 
@@ -18,7 +19,7 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<AuthPage mode="login" />} />
-        <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route path="/signup" element={<Navigate to="/login" replace />} />
 
         {/* Protected routes — wrapped in WorkspaceShell */}
         <Route element={<ProtectedRoute />}>
@@ -34,6 +35,7 @@ function App() {
                   <Route path="history" element={<HistoryPage />} />
                   <Route path="audit-logs" element={<AuditPage />} />
                   <Route path="organization/members" element={<MembersPage />} />
+                  <Route path="organization/create-user" element={<CreateUserPage />} />
                   <Route path="organization/settings" element={<SettingsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="admin/organizations" element={<OrganizationsPage />} />

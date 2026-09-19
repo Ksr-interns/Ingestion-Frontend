@@ -27,6 +27,7 @@ export interface IngestionJob {
 	job_id: string;
 	filename: string;
 	dataset_name: string;
+	dataset_id?: string;
 	provider: Source;
 	status: JobStatus;
 	progress_percentage: number;

@@ -6,6 +6,7 @@ import {
 	History,
 	ScrollText,
 	Users,
+	UserPlus,
 	Settings2,
 	ChevronsUpDown,
 	ChevronRight,
@@ -48,6 +49,7 @@ const mainNav = [
 ];
 const orgNav = [
 	{ label: "Team members", href: "/organization/members", icon: Users },
+	{ label: "Create user", href: "/organization/create-user", icon: UserPlus },
 	{
 		label: "Organization settings",
 		href: "/organization/settings",
@@ -66,10 +68,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 	const [helpOpen, setHelpOpen] = useState(false);
 	const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-	// Determine user role from memberships
+	// Determine user role from memberships or user role property
 	const role = user?.role === "super_admin"
 		? "super_admin"
-		: user?.memberships?.find((m) => m.organization_id === activeOrganizationId)?.role ?? "member";
+		: user?.memberships?.find((m) => m.organization_id === activeOrganizationId)?.role ??
+			(user?.role === "admin" || user?.role === "org_admin" ? "org_admin" : "member");
 
 	const activeOrg = user?.memberships?.find(
 		(m) => m.organization_id === activeOrganizationId
